@@ -1,0 +1,39 @@
+# Backend-specific ignores
+
+# 1) Environment files
+.env
+.env.*
+
+# 2) Virtual environments
+venv/
+.venv/
+
+# 3) Python caches
+__pycache__/
+*.pyc
+*.pyo
+
+# 4) Test, type-check and tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
+
+# 5) Logs
+logs/
+*.log
+app.log
+
+# 6) Local data and artifacts
+synapse.db
+models/
+temp/
+
+# 7) OS/editor noise
+.DS_Store
+.idea/
+.vscode/
+

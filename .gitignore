@@ -1,0 +1,18 @@
+# Root-level ignores per project policy
+
+# 1) Environment files (root, backend, frontend)
+.env
+.env.*
+backend/.env
+backend/.env.*
+study-synapse/.env
+study-synapse/.env.*
+
+# 2) SQLite database (do not track)
+backend/synapse.db
+
+# 3) Local models/cache directories
+backend/models/
+
+# Note: No additional ignores requested
+backend/temp/
