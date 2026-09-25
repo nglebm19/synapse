@@ -5,10 +5,11 @@ Model Manager - Handles loading and managing AI models optimized for M1 Pro
 """
 
 import os
+import re
 import logging
 import asyncio
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import torch
 from transformers import (
     WhisperProcessor, WhisperForConditionalGeneration,
@@ -18,6 +19,9 @@ from transformers import (
 import whisper
 
 logger = logging.getLogger(__name__)
+
+# Target length (in tokens) for each partial summary in the map-reduce pass
+CHUNK_SUMMARY_LENGTH = 150
 
 
 class ModelManager:
@@ -132,38 +136,103 @@ class ModelManager:
             raise
     
     async def generate_summary(self, text: str, max_length: int = 150) -> str:
-        """Generate summary using DistilBART"""
+        """Generate summary using DistilBART, covering the whole text"""
         try:
             if not self.summarization_pipeline:
                 raise RuntimeError("Summarization model not loaded")
-            
+
             logger.info(f"📝 Generating summary for text: {len(text)} characters")
-            
-            # Split long text into chunks if needed
-            max_input_length = 1024  # DistilBART limit
-            if len(text) > max_input_length:
-                text = text[:max_input_length]
-            
+
+            if not text.strip():
+                return ""
+
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None,
-                lambda: self.summarization_pipeline(
-                    text,
-                    max_length=max_length,
-                    min_length=50,
-                    do_sample=False,
-                    truncation=True
-                )
+            summary = await loop.run_in_executor(
+                None, self._summarize_long_text, text, max_length
             )
-            
-            summary = result[0]["summary_text"]
+
             logger.info(f"✅ Summary generated: {len(summary)} characters")
-            
+
             return summary
-            
+
         except Exception as e:
             logger.error(f"❌ Summary generation failed: {e}")
             raise
+
+    def _summarize_long_text(self, text: str, max_length: int) -> str:
+        """Map-reduce summary: summarize each chunk, then summarize the summaries
+        until they fit in one model input"""
+        tokenizer = self.summarization_pipeline.tokenizer
+        # Leave room for special tokens; some tokenizers report a huge sentinel value
+        max_tokens = min(tokenizer.model_max_length, 1024) - 24
+
+        chunks = self._split_into_chunks(text, max_tokens)
+        round_number = 0
+        while len(chunks) > 1:
+            round_number += 1
+            logger.info(f"📝 Summary round {round_number}: {len(chunks)} chunks")
+            partial_summaries = [
+                self._summarize_chunk(chunk, CHUNK_SUMMARY_LENGTH) for chunk in chunks
+            ]
+            next_chunks = self._split_into_chunks(" ".join(partial_summaries), max_tokens)
+            if len(next_chunks) >= len(chunks):
+                # Summaries are not getting shorter; stop instead of looping forever
+                logger.warning("⚠️ Summaries did not shrink; using first chunk only")
+                next_chunks = next_chunks[:1]
+            chunks = next_chunks
+
+        return self._summarize_chunk(chunks[0], max_length)
+
+    def _split_into_chunks(self, text: str, max_tokens: int) -> List[str]:
+        """Split text into chunks of at most max_tokens, on sentence boundaries
+        where possible"""
+        tokenizer = self.summarization_pipeline.tokenizer
+        sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+
+        chunks: List[str] = []
+        current: List[str] = []
+        current_tokens = 0
+
+        for sentence in sentences:
+            token_ids = tokenizer.encode(sentence, add_special_tokens=False)
+
+            # A single sentence can exceed the limit (Whisper sometimes emits
+            # long runs without punctuation), so cut it by tokens
+            if len(token_ids) > max_tokens:
+                if current:
+                    chunks.append(" ".join(current))
+                    current, current_tokens = [], 0
+                for start in range(0, len(token_ids), max_tokens):
+                    chunks.append(tokenizer.decode(token_ids[start:start + max_tokens]))
+                continue
+
+            if current_tokens + len(token_ids) > max_tokens:
+                chunks.append(" ".join(current))
+                current, current_tokens = [], 0
+
+            current.append(sentence)
+            current_tokens += len(token_ids)
+
+        if current:
+            chunks.append(" ".join(current))
+
+        return chunks
+
+    def _summarize_chunk(self, text: str, max_length: int) -> str:
+        """Summarize one chunk that fits in the model input"""
+        input_tokens = len(self.summarization_pipeline.tokenizer.encode(text))
+        # Short inputs need a short target, or the model pads with repetition
+        target_max = max(16, min(max_length, input_tokens // 2))
+        target_min = min(50, target_max // 2)
+
+        result = self.summarization_pipeline(
+            text,
+            max_length=target_max,
+            min_length=target_min,
+            do_sample=False,
+            truncation=True
+        )
+        return result[0]["summary_text"].strip()
     
     async def process_text_to_bullet_summary(self, transcript: str) -> str:
         """Convert transcript to bullet-point summary"""
