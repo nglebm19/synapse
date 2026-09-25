@@ -29,11 +29,10 @@ app.log
 
 # 6) Local data and artifacts
 synapse.db
-models/
+/models/
 temp/
 
 # 7) OS/editor noise
 .DS_Store
 .idea/
 .vscode/
-

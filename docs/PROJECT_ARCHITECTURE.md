@@ -10,7 +10,7 @@ Your Synapse project is a **full-stack AI application** with three main layers:
 
 ---
 
-## 🎨 **Frontend Architecture (study-synapse/)**
+## 🎨 **Frontend Architecture (frontend/)**
 
 ### **Technology Stack:**
 - **Framework**: React 18 + TypeScript
@@ -22,7 +22,7 @@ Your Synapse project is a **full-stack AI application** with three main layers:
 
 ### **📁 Frontend Structure:**
 ```
-study-synapse/src/
+frontend/src/
 ├── pages/                    # Main application pages
 │   ├── Index.tsx            # 🏠 Main processing interface
 │   ├── Dashboard.tsx        # 📊 History & user data
@@ -202,7 +202,7 @@ Local Machine (MacBook M1 Pro 16GB):
 | File | Purpose |
 |------|---------|
 | `backend/.env` | Environment variables & model settings |
-| `study-synapse/package.json` | Frontend dependencies |
+| `frontend/package.json` | Frontend dependencies |
 | `backend/requirements.txt` | Python dependencies |
 | `supabase/migrations/` | Database schema versions |
 

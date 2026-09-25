@@ -7,13 +7,15 @@ Local-first, full‑stack app that converts YouTube videos into transcripts and 
 This monorepo contains:
 
 - `backend/`: FastAPI service for video processing, transcription (Whisper), and summarization (DistilBART)
-- `study-synapse/`: React + TypeScript + Vite frontend (port 8080)
+- `frontend/`: React + TypeScript + Vite frontend (port 8080)
 
 Helpful docs:
 
-- [`PROJECT_ARCHITECTURE.md`](./PROJECT_ARCHITECTURE.md)
-- [`LOCAL_MODEL_GUIDE.md`](./LOCAL_MODEL_GUIDE.md)
-- [`FIXED_PORTS.md`](./FIXED_PORTS.md)
+- [`docs/PROJECT_ARCHITECTURE.md`](./docs/PROJECT_ARCHITECTURE.md)
+- [`docs/LOCAL_MODEL_GUIDE.md`](./docs/LOCAL_MODEL_GUIDE.md)
+- [`docs/RECOMMENDED_MODELS_M1_PRO.md`](./docs/RECOMMENDED_MODELS_M1_PRO.md)
+- [`docs/DEBUG_GUIDE.md`](./docs/DEBUG_GUIDE.md)
+- [`docs/DATABASE_STATUS.md`](./docs/DATABASE_STATUS.md)
 
 ## Requirements
 
@@ -33,7 +35,7 @@ Helpful docs:
    pip install -r requirements.txt
    ```
 2. Configure environment (optional)
-   - Create `backend/.env` if you want to override defaults (see `LOCAL_MODEL_GUIDE.md`)
+   - Create `backend/.env` if you want to override defaults (see `docs/LOCAL_MODEL_GUIDE.md`)
 3. Run the server (uses `backend/run_server.sh`)
    ```bash
    ./run_server.sh
@@ -55,24 +57,21 @@ Key backend files:
 
 1. Install dependencies
    ```bash
-   cd study-synapse
+   cd frontend
    npm i
    ```
-2. Configure environment (Supabase + API URL)
-   Create `study-synapse/.env`:
-   ```bash
-   VITE_SUPABASE_URL=your_supabase_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   VITE_API_BASE_URL=http://localhost:8000/api
-   ```
-3. Start the dev server
+2. Start the dev server
    ```bash
    npm run dev
    ```
-4. Access the app
+3. Access the app
    - Frontend: `http://localhost:8080/`
 
-See `study-synapse/src/services/api.ts` for the API base URL usage.
+Configuration is currently hardcoded (no `.env` is read):
+
+- Backend API URL: `API_BASE_URL` in `frontend/src/services/api.ts` (`http://localhost:8000/api`)
+- Supabase URL and anon key: `frontend/src/integrations/supabase/client.ts`
+- Supabase schema: `frontend/supabase/migrations/`
 
 ## Ports
 
@@ -80,20 +79,22 @@ See `study-synapse/src/services/api.ts` for the API base URL usage.
 - Backend: `http://localhost:8000/`
 - Backend API: `http://localhost:8000/api/`
 
-Details in [`FIXED_PORTS.md`](./FIXED_PORTS.md).
+Details in [`docs/FIXED_PORTS.md`](./docs/FIXED_PORTS.md).
 
 ## Testing
 
-Backend tests:
+There is no automated test suite yet.
+
+Backend smoke check (imports, model loading, database):
 ```bash
 cd backend
 source venv/bin/activate
-pytest
+python scripts/test_system.py
 ```
 
 Frontend lint:
 ```bash
-cd study-synapse
+cd frontend
 npm run lint
 ```
 
@@ -101,25 +102,25 @@ npm run lint
 
 ```
 .
-├── backend/
+├── backend/             FastAPI service
 │   ├── app/
-│   ├── models/
-│   ├── temp/
+│   │   ├── api/         Routes (health, video processing)
+│   │   ├── database/    SQLite models and operations
+│   │   ├── models/      ModelManager (Whisper + DistilBART)
+│   │   └── services/    YouTube download/extract
+│   ├── scripts/         Manual checks (test_system.py)
+│   ├── models/          Local model cache (git-ignored)
 │   ├── requirements.txt
-│   ├── run_server.sh
-│   └── venv/
-├── study-synapse/
+│   └── run_server.sh
+├── frontend/            React + TypeScript + Vite app
 │   ├── src/
 │   ├── public/
+│   ├── supabase/        Supabase config and migrations
 │   ├── package.json
 │   └── vite.config.ts
-├── PROJECT_ARCHITECTURE.md
-├── LOCAL_MODEL_GUIDE.md
-└── FIXED_PORTS.md
+└── docs/                Architecture, model, and debugging guides
 ```
 
 ## License
 
 MIT
-
-

@@ -9,8 +9,8 @@ import os
 import sys
 from pathlib import Path
 
-# Add the app directory to the Python path
-sys.path.append(str(Path(__file__).parent))
+# Add the backend directory to the Python path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 def test_imports():
     """Test all critical imports"""
